@@ -62,7 +62,8 @@ def page_funcion2():
 st.set_page_config(page_title="OXI Realty")
 
 # Configura la barra lateral
-st.sidebar.title('Navegación')
+# st.sidebar.title('Navegación')
+st.sidebar.image("logo2.png", width=205)
 page = st.sidebar.selectbox('Seleccione una página',
                             ['Perímetro', 'Función 1', 'Función 2'])
 
