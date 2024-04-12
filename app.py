@@ -47,7 +47,7 @@ def page_inicio():
             df = join_excels(df_subido, df)
 
     st.header('Crear nuevo perimetro')
-    if st.button('Crear nuevo perimetro'):
+    if st.button('Crear nuevo perimetro', type="primary"):
         st.write("Nuevo perímetro:")
         st.write(df)
 
