@@ -165,7 +165,7 @@ def create_data(df):
         for field in fields_to_remove:
             del record["fields"][field]
 
-    print(final_data)
+    st.write(final_data)
 
     # url = f"https://api.airtable.com/v0/{base_id}/{table_id}"
     # response = requests.post(url, headers=create_headers(), json=final_data)
