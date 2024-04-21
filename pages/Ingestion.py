@@ -208,8 +208,14 @@ if uploaded_files:
 
         st.write("Activos modificados:")
         st.write(resultado[6][['id', 'OXI_ID', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'id_numerico']])
-        
-if st.button('Actualizar los activos', type="primary"):
-    with st.spinner('Uploading...'):
-        create_data(resultado[4])
-        update_data(resultado[6])
+
+col1, col2 = st.columns(2)
+with col1:
+    if st.button('Crear los activos', type="primary"):
+        with st.spinner('Uploading...'):
+            create_data(resultado[4])
+
+with col2:
+    if st.button('Actualizar los activos', type="primary"):
+        with st.spinner('Uploading...'):
+            update_data(resultado[6])
