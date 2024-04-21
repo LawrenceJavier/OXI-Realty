@@ -2,6 +2,7 @@ import os
 from pyairtable import Api
 import pandas as pd
 import streamlit as st
+import re
 import json
 import requests
 import openpyxl
@@ -20,43 +21,153 @@ AIRTABLE_API_KEY = "pat86Ki579uDzXanU.e3c6cfeeddfb5963697d0fe75cc1fe159ad7ce696a
 
 def create_headers():
     headers = {
-        'Authorization': 'Bearer ' + str(AIRTABLE_API_KEY),
-        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {AIRTABLE_API_KEY}',
+        'Content-Type': 'application/json'
     }
     return headers
 
-def get_df(file_buffer, numero_columna_para_nombres):
-    df = pd.read_excel(file_buffer, engine='openpyxl', header=numero_columna_para_nombres)
-    return df
+def seleccionar_columnas(tipo_de_perimetro, uploaded_file):
 
-def join_excels(df_new, df_AT):
-    print(len(df_AT.columns))
-    result = pd.concat([df_AT, df_new], join='outer')
-    print(len(df_AT.columns))
-    # merged_df = result.drop_duplicates(subset='CODIGO INMUEBLE COMPLETO', keep='first')
-    return result
-
-def seleccionar_columnas(nombre_archivo):
-    if nombre_archivo == "Coral homes WIP's & suelos.xlsx":
-        return 0
-    elif nombre_archivo == "Coral Homes REO.xlsx":
-        return 1
-    elif nombre_archivo == "Anticipa & Aliseda.xlsx":
-        return 1
-    elif nombre_archivo == "Producto Libre OXI.xlsx":
-        return 0
-
-def mapear_columnas(nombre_archivo, df_subido):
-    if nombre_archivo == "Coral homes WIP's & suelos.xlsx":
-        print()
-    elif nombre_archivo == "Coral Homes REO.xlsx":
-        print()
-    elif nombre_archivo == "Anticipa & Aliseda.xlsx":
-        df_subido = df_subido.drop('ID ATENEA', axis=1)
+    if tipo_de_perimetro == 'Coral Homes Wips & Suelos':
+        df1 = pd.read_excel(uploaded_file,sheet_name=0, engine='openpyxl', header=0)
+        df1 = df1.drop(["UR's Promo", "% Propiedad", f"% Ejecución", "Total Resi Units", "Posesión"], axis=1)
+        df1.columns= ['CODIGO INMUEBLE COMPLETO', 'DIRECCION COMPLETA', 'REFERENCIA CATASTRAL', 'CIUDAD', 'PROVINCIA', 'CCAA']
+        df2 = pd.read_excel(uploaded_file,sheet_name=1, engine='openpyxl', header=0)
+        df2 = df2.drop(["SECTOR", "Gestión UR", "Calificación", "Uso Principal", "% Particpación", "URs por Ámbito","Proindiviso", "Superficie Suelo Propiedad", "EDIFICABILIDAD TOTAL", "EDIFICABILIDAD RESID. LIBRE", "VIVIENDAS TOTALES PROPIEDAD", "VIVIENDAS VPP PROPIEDAD", "VIVIENDAS LIBRES PROPIEDAD"], axis=1)
+        df2.columns= ['CODIGO INMUEBLE COMPLETO', 'DIRECCION COMPLETA', 'REFERENCIA CATASTRAL', 'CIUDAD', 'PROVINCIA', 'CCAA', 'TIPOLOGIA INMUEBLE']
+        df = pd.concat([df2, df1])
+        df_subido = df.reset_index(drop=True)
+        return df_subido
+    
+    elif tipo_de_perimetro == 'Coral Homes':
+        df = pd.read_excel(uploaded_file, engine='openpyxl', header=1)
+        df_subido = df.drop(['Promoción conjunta', 'Unidades Promoción conjunta','Promoción comercial', 'Unidades Promoción comercial', 'Superficie Solar'], axis=1)
+        df_subido.columns= ['CODIGO INMUEBLE COMPLETO', 'DIRECCION COMPLETA', 'CIUDAD', 'PROVINCIA', 'CCAA', 'CODIGO POSTAL', 'REFERENCIA CATASTRAL', 'TIPOLOGIA INMUEBLE', 'SUPERFICIE', 'ASKING PRICE']
+        return df_subido
+    
+    elif tipo_de_perimetro == 'Anticipa & Aliseda':
+        df = pd.read_excel(uploaded_file, engine='openpyxl', header=1)
+        df_subido = df.drop('ID ATENEA', axis=1)
         df_subido.columns= ['CODIGO INMUEBLE COMPLETO', 'EMPRESA PROPIETARIA', 'TIPOLOGIA INMUEBLE', 'REFERENCIA CATASTRAL', 'CCAA', 'PROVINCIA', 'CIUDAD', 'DIRECCION COMPLETA', 'CODIGO POSTAL', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'SITUACIÓN OCUPACIONAL']
         return df_subido
-    elif nombre_archivo == "Producto Libre OXI.xlsx":
-        print()
+    
+    elif tipo_de_perimetro == 'Producto Libre OXI':
+        df = pd.read_excel(uploaded_file)
+        df_subido = df.drop(["Portfolio", "Construcción", "Año Construcción", "Escalera", "Piso", "FR",  "Coef. Particip", "Expediente Judicial", "Situación"], axis=1)
+        df_subido.columns= ['TIPOLOGIA INMUEBLE', 'CCAA', 'PROVINCIA', 'CIUDAD',  'DIRECCION COMPLETA', 'CODIGO POSTAL', 'REFERENCIA CATASTRAL', 'SUPERFICIE', 'ASKING PRICE']
+        return df_subido
+
+def actualizar_perimetro(df1, df2):
+    df1 = df1.astype(str)
+    df2 = df2.astype(str)
+    columnas_float = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
+    for columna in columnas_float:
+        if columna in df1:
+            df1[columna] = pd.to_numeric(df1[columna], errors='coerce').astype(float)
+        if columna in df2:
+            df2[columna] = pd.to_numeric(df2[columna], errors='coerce').astype(float)
+
+    # Mostrar las filas idénticas en ambos DF's
+    columnas_fusion = ['CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
+    columnas_fusion_presentes = [col for col in columnas_fusion if col in df1.columns and col in df2.columns]
+    filas_iguales = df1.merge(df2, on=columnas_fusion_presentes)
+    ids_coincidentes = filas_iguales['CODIGO INMUEBLE COMPLETO']
+    print(len(ids_coincidentes))
+
+    # Filas que solo están en el primer DataFrame
+    filas_solo_df1 = df1[~df1['CODIGO INMUEBLE COMPLETO'].isin(df2['CODIGO INMUEBLE COMPLETO'])]
+    id_filas_solo_df1 = list(filas_solo_df1["CODIGO INMUEBLE COMPLETO"])
+    print(len(id_filas_solo_df1))
+
+    # Filas que solo están en el segundo DataFrame
+    filas_solo_df2 = df2[~df2['CODIGO INMUEBLE COMPLETO'].isin(df1['CODIGO INMUEBLE COMPLETO'])]
+    id_filas_solo_df2 = list(filas_solo_df2["CODIGO INMUEBLE COMPLETO"])
+    print(len(id_filas_solo_df2))
+
+    # Filas en ambos DataFrames pero con al menos un campo modificado
+    lista_total = []
+    lista_total.extend(ids_coincidentes)
+    lista_total.extend(id_filas_solo_df1)
+    lista_total.extend(id_filas_solo_df2)
+    df2_extendido = pd.merge(df2, df1[['CODIGO INMUEBLE COMPLETO', 'id_numerico', 'id', 'OXI_ID']], on='CODIGO INMUEBLE COMPLETO', how='left')
+    df_concatenado = pd.concat([df2_extendido, df1], ignore_index=True)
+    df_concatenado = df_concatenado.drop_duplicates(subset=['CODIGO INMUEBLE COMPLETO'], keep='first')
+    filas_no_en_lista = df_concatenado[~df_concatenado['CODIGO INMUEBLE COMPLETO'].isin(lista_total)]
+    id_filas_diferentes = list(filas_no_en_lista["CODIGO INMUEBLE COMPLETO"])
+    
+    return filas_iguales, ids_coincidentes, filas_solo_df1, id_filas_solo_df1, filas_solo_df2, id_filas_solo_df2, filas_no_en_lista, id_filas_diferentes
+
+@st.cache_data
+def get_data():
+    api = Api(AIRTABLE_API_KEY)
+    table = api.table(base_id, table_id)
+    df_AT = pd.json_normalize(table.all())
+    df_AT.columns = df_AT.columns.str.replace('fields.', '')
+    df_AT = df_AT.drop(columns=['createdTime', 'DESCUENTO SOBRE ASKING PRICE.specialValue'])
+    return df_AT
+
+def update_data(df):
+    url = f'https://api.airtable.com/v0/{base_id}/{table_id}'
+    headers =  create_headers()
+    
+    df = df.astype(str)
+    cols_to_convert_float = ['SUPERFICIE', 'ASKING PRICE']
+    for col in cols_to_convert_float:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+    cols_to_convert = ['id_numerico', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS']
+    for col in cols_to_convert:
+        df[col] = pd.to_numeric(df[col], errors='coerce').astype(pd.Int64Dtype())
+
+    df_to_upload = df[['id', 'id_numerico', 'ASKING PRICE', 'SUPERFICIE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS']] 
+
+    records = []
+    for _, row in df_to_upload.iterrows():
+        record = {"fields": {}}
+        for col in df_to_upload.columns:
+            if pd.notnull(row[col]) and col != "id":
+                record["fields"][col] = row[col]
+        record["id"] = row["id"]
+        records.append(record)
+
+    # Formato final deseado
+    final_data = {"records": records}
+
+    for record in final_data["records"]:
+        fields_to_remove = [key for key, value in record["fields"].items() if value == "nan" or value == None]
+        for field in fields_to_remove:
+            del record["fields"][field]
+
+    st.write(final_data)
+
+    response = requests.patch(url, headers=headers, json=final_data)
+    if response.status_code == 200:
+        print("Record updated successfully!")
+    else:
+        print("Failed to update record.")
+
+def create_data(df):
+    df = df.astype(str)
+
+    cols_to_convert_float = ['SUPERFICIE', 'ASKING PRICE']
+    for col in cols_to_convert_float:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+    cols_to_convert = ['id_numerico', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS']
+    for col in cols_to_convert:
+        df[col] = pd.to_numeric(df[col], errors='coerce').astype(pd.Int64Dtype())
+
+    records = df.to_dict(orient='records')
+    final_data = {"records": [{"fields": record} for record in records]}
+
+    for record in final_data["records"]:
+        fields_to_remove = [key for key, value in record["fields"].items() if value == "nan" or value == None]
+        for field in fields_to_remove:
+            del record["fields"][field]
+
+    url = f"https://api.airtable.com/v0/{base_id}/{table_id}"
+    response = requests.post(url, headers=create_headers(), json=final_data)
+    print(response)
 
 
 #############
@@ -66,30 +177,39 @@ def mapear_columnas(nombre_archivo, df_subido):
 def page_ingestion():
     st.title("Actualización de perímetro")
 
-    api = Api(AIRTABLE_API_KEY)
-    table = api.table(base_id, table_id)
-    df_AT = pd.json_normalize(table.all())
-    df_AT.columns = df_AT.columns.str.replace('fields.', '')
-    st.write(df_AT)
-    
-    df = pd.DataFrame()
-    
-    uploaded_files = st.file_uploader("Selecciona archivo:", accept_multiple_files=True)
+    df_AT = get_data()
+    numero_activos = len(df_AT)
+    st.write(f"Numero de activos totales: {numero_activos}")
+    st.dataframe(df_AT)
+
+    st.markdown('##')
+
+    st.header("Seleccion de nuevos activos:", divider= 'gray')
+    col1, col2 = st.columns(2)
+    with col1:
+        tipo_de_perimetro = st.selectbox('',
+                            ['Anticipa & Aliseda', 'Coral Homes', 'Coral Homes Wips & Suelos', 'Producto Libre OXI'])
+    with col2:
+        uploaded_files = st.file_uploader( "" ,accept_multiple_files=True)
 
     if uploaded_files:
         for uploaded_file in uploaded_files:
-            numero_columna_para_nombres = seleccionar_columnas(uploaded_file.name)
-            df_subido = get_df(uploaded_file, numero_columna_para_nombres)
-            df_subido = mapear_columnas(uploaded_file.name, df_subido)
-            st.write(df_subido.head())
-            # Falta mapear las columnas de los diferentes dfs a el formato estandar par unificarlos
-            # Del df total descargado de AT me quedo solo 
-            df = join_excels(df_subido, df_AT)
+            df_subido = seleccionar_columnas(tipo_de_perimetro, uploaded_file)
+            st.write(df_subido)
+            
+            resultado = actualizar_perimetro(df_AT, df_subido)
+            
+            st.write("Nuevos activos:")
+            numeros_crecientes = list(range(numero_activos+1, 1+numero_activos + len(resultado[4])))
+            resultado[4]['id_numerico'] = numeros_crecientes
+            st.write(resultado[4])
 
-    st.header('Crear nuevo perimetro')
-    if st.button('Crear nuevo perimetro', type="primary"):
-        st.write("Nuevo perímetro:")
-        st.write(df)
+            st.write("Activos modificados:")
+            st.write(resultado[6][['id', 'OXI_ID', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'id_numerico']])
+            
+    if st.button('Actualizar los activos', type="primary"):
+        create_data(resultado[4])
+        update_data(resultado[6])
 
 def page_contratos():
     st.title("Página de Función 1")
@@ -103,7 +223,7 @@ def page_funcion2():
 #    Main   #
 #############
 
-st.set_page_config(page_title="OXI Realty")
+st.set_page_config(page_title="OXI Realty", layout="wide")
 
 # Configura la barra lateral
 st.sidebar.title("OXI REALTY")
