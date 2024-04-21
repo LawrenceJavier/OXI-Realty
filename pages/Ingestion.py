@@ -214,7 +214,7 @@ with col1:
     if st.button('Crear los activos', type="primary"):
         with st.spinner('Uploading...'):
             for index, row in resultado[4].iterrows():
-                if row['A'] > 2:
+                if len(str.row['id_numerico']) > 0:
                     df_nuevo = df_nuevo.append(row, ignore_index=True)
                     create_data(df_nuevo)
 
@@ -222,6 +222,6 @@ with col2:
     if st.button('Actualizar los activos', type="primary"):
         with st.spinner('Uploading...'):
             for index, row in resultado[4].iterrows():
-                if row['A'] > 2:
+                if len(str.row['id_numerico']) > 0:
                     df_nuevo = df_nuevo.append(row, ignore_index=True)
                     update_data(resultado[6])
