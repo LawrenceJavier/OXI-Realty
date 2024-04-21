@@ -97,7 +97,6 @@ def actualizar_perimetro(df1, df2):
     
     return filas_iguales, ids_coincidentes, filas_solo_df1, id_filas_solo_df1, filas_solo_df2, id_filas_solo_df2, filas_no_en_lista, id_filas_diferentes
 
-@st.cache_data
 def get_data():
     api = Api(AIRTABLE_API_KEY)
     table = api.table(base_id, table_id)
