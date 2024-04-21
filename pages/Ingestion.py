@@ -48,7 +48,7 @@ def seleccionar_columnas(tipo_de_perimetro, uploaded_file):
     elif tipo_de_perimetro == 'Anticipa & Aliseda':
         df = pd.read_excel(uploaded_file, engine='openpyxl', header=1)
         df_subido = df.drop(['ID ATENEA', 'CODIGO SOCIEDAD'], axis=1)
-        df_subido.columns= ['CODIGO INMUEBLE COMPLETO', 'EMPRESA PROPIETARIA', 'TIPOLOGIA INMUEBLE', 'REFERENCIA CATASTRAL', 'CCAA', 'PROVINCIA', 'CIUDAD', 'DIRECCION COMPLETA', 'CODIGO POSTAL', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'SITUACIÓN OCUPACIONAL']
+        df_subido.columns= ['CODIGO INMUEBLE COMPLETO', 'EMPRESA PROPIETARIA', 'REFERENCIA CATASTRAL', 'CCAA', 'PROVINCIA', 'CIUDAD', 'DIRECCION COMPLETA', 'CODIGO POSTAL', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'SITUACIÓN OCUPACIONAL']
         return df_subido
     
     elif tipo_de_perimetro == 'Producto Libre OXI':
