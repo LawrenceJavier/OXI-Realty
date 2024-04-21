@@ -210,5 +210,6 @@ if uploaded_files:
         st.write(resultado[6][['id', 'OXI_ID', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'id_numerico']])
         
 if st.button('Actualizar los activos', type="primary"):
-    create_data(resultado[4])
-    update_data(resultado[6])
+    with st.spinner('Uploading...'):
+        create_data(resultado[4])
+        update_data(resultado[6])
