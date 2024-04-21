@@ -167,6 +167,8 @@ def create_data(df):
     url = f"https://api.airtable.com/v0/{base_id}/{table_id}"
     response = requests.post(url, headers=create_headers(), json=final_data)
 
+    st.write(final_data)
+
 
 #############
 #    Main   #
