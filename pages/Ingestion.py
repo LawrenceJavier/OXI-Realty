@@ -11,9 +11,9 @@ import openpyxl
 #  Secrets  #
 #############
 
-base_id = "app3vwLcsaEjJGPl6"
-table_id = "tblCzTZXgoRu9Dypt"
-AIRTABLE_API_KEY = "pat86Ki579uDzXanU.e3c6cfeeddfb5963697d0fe75cc1fe159ad7ce696aa0bc230f9e7e6f55748b9a"
+base_id = st.secrets["base_id"]
+table_id = st.secrets["table_id"]
+AIRTABLE_API_KEY = st.secrets["AIRTABLE_API_KEY"]
 
 #############
 # Funciones #
