@@ -195,7 +195,7 @@ def page_ingestion():
     if uploaded_files:
         for uploaded_file in uploaded_files:
             df_subido = seleccionar_columnas(tipo_de_perimetro, uploaded_file)
-            st.write(df_subido)
+            # st.write(df_subido)
             
             resultado = actualizar_perimetro(df_AT, df_subido)
             
