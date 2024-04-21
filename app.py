@@ -54,7 +54,7 @@ def seleccionar_columnas(tipo_de_perimetro, uploaded_file):
     elif tipo_de_perimetro == 'Producto Libre OXI':
         df = pd.read_excel(uploaded_file)
         df_subido = df.drop(["Portfolio", "Construcción", "Año Construcción", "Escalera", "Piso", "FR",  "Coef. Particip", "Expediente Judicial", "Situación"], axis=1)
-        df_subido.columns= ['TIPOLOGIA INMUEBLE', 'CCAA', 'PROVINCIA', 'CIUDAD',  'DIRECCION COMPLETA', 'CODIGO POSTAL', 'REFERENCIA CATASTRAL', 'SUPERFICIE', 'ASKING PRICE']
+        df_subido.columns= ['CODIGO INMUEBLE COMPLETO', 'TIPOLOGIA INMUEBLE', 'CCAA', 'PROVINCIA', 'CIUDAD',  'DIRECCION COMPLETA', 'CODIGO POSTAL', 'REFERENCIA CATASTRAL', 'SUPERFICIE', 'ASKING PRICE']
         return df_subido
 
 def actualizar_perimetro(df1, df2):
