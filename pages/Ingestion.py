@@ -213,15 +213,21 @@ col1, col2 = st.columns(2)
 with col1:
     if st.button('Crear los activos', type="primary"):
         with st.spinner('Uploading...'):
-            for index, row in resultado[4].iterrows():
-                if len(str.row['id_numerico']) > 0:
-                    df_nuevo = df_nuevo.append(row, ignore_index=True)
-                    create_data(df_nuevo)
+            # Número de filas a imprimir en cada iteración
+            filas_por_iteracion = 3
+            indice_inicial = 0
+            while indice_inicial < len(resultado[4]):
+                grupo_filas = resultado[4].iloc[indice_inicial:indice_inicial + filas_por_iteracion]
+                create_data(grupo_filas)
+                indice_inicial += filas_por_iteracion
 
 with col2:
     if st.button('Actualizar los activos', type="primary"):
         with st.spinner('Uploading...'):
-            for index, row in resultado[4].iterrows():
-                if len(str.row['id_numerico']) > 0:
-                    df_nuevo = df_nuevo.append(row, ignore_index=True)
-                    update_data(resultado[6])
+            filas_por_iteracion = 3
+            indice_inicial = 0
+            while indice_inicial < len(resultado[4]):
+                grupo_filas = resultado[6].iloc[indice_inicial:indice_inicial + filas_por_iteracion]
+                update_data(grupo_filas)
+                indice_inicial += filas_por_iteracion
+                
