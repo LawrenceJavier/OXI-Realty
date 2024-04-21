@@ -152,7 +152,8 @@ def create_data(df):
     for col in cols_to_convert_float:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    cols_to_convert = ['id_numerico', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS']
+    #, 'NUMERO DORMITORIOS', 'NUMERO BAÑOS'
+    cols_to_convert = ['id_numerico']
     for col in cols_to_convert:
         df[col] = pd.to_numeric(df[col], errors='coerce').astype(pd.Int64Dtype())
 
