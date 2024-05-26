@@ -140,37 +140,57 @@ def update_data(df):
     st.write(final_data)
 
     response = requests.patch(url, headers=headers, json=final_data)
+
     if response.status_code == 200:
         print("Record updated successfully!")
     else:
         print("Failed to update record.")
 
 def create_data(df):
-    df = df.astype(str)
 
-    cols_to_convert_float = ['SUPERFICIE', 'ASKING PRICE']
-    for col in cols_to_convert_float:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
+    try:
 
-    #, 'NUMERO DORMITORIOS', 'NUMERO BAÑOS'
-    cols_to_convert = ['id_numerico']
-    for col in cols_to_convert:
-        df[col] = pd.to_numeric(df[col], errors='coerce').astype(pd.Int64Dtype())
+        df = df.astype(str)
 
-    records = df.to_dict(orient='records')
-    final_data = {"records": [{"fields": record} for record in records]}
+        cols_to_convert_float = ['SUPERFICIE', 'ASKING PRICE']
+        cols_to_convert_int = ['id_numerico', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS']
 
-    for record in final_data["records"]:
-        fields_to_remove = [key for key, value in record["fields"].items() if value == "nan" or value == None]
-        for field in fields_to_remove:
-            del record["fields"][field]
+        # Convertir columnas a float si existen
+        for col in cols_to_convert_float:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    url = f"https://api.airtable.com/v0/{base_id}/{table_id}"
-    response = requests.post(url, headers=create_headers(), json=final_data)
-    if response.status_code == 200:
-        print("Record updated successfully!")
-    else:
-        print("Failed to update record.")
+        # Convertir columnas a Int64 si existen
+        for col in cols_to_convert_int:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').astype(pd.Int64Dtype())
+
+        records = df.to_dict(orient='records')
+        final_data = {"records": [{"fields": record} for record in records]}
+
+        for record in final_data["records"]:
+            fields_to_remove = [key for key, value in record["fields"].items() if value == "nan" or value == None]
+            for field in fields_to_remove:
+                del record["fields"][field]
+
+        print(final_data)
+
+        url = f"https://api.airtable.com/v0/{base_id}/{table_id}"
+        response = requests.post(url, headers=create_headers(), json=final_data)
+
+        if response.status_code == 200:
+            print("Record create successfully!")
+            st.write("Record create successfully!")
+        else:
+            # print("Failed to create record.", response.status_code)
+            try:
+                error_message = response.json()
+                # print(f"Error message: {error_message}")
+                st.write(f"Error message: {error_message}")
+            except ValueError:
+                # print("Failed to parse error message.")
+                st.write("Failed to parse error message.")
+    except: pass
 
 
 #############
@@ -199,10 +219,12 @@ with col2:
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
-        df_subido = seleccionar_columnas(tipo_de_perimetro, uploaded_file)
-        # st.write(df_subido)
+        # df_subido = seleccionar_columnas(tipo_de_perimetro, uploaded_file)
+        # # st.write(df_subido)
+        df_perimetro = pd.read_excel(uploaded_file, engine='openpyxl', header=1)
+        st.write(df_perimetro)
         
-        resultado = actualizar_perimetro(df_AT, df_subido)
+        resultado = actualizar_perimetro(df_AT, df_perimetro)
         
         st.write("Nuevos activos:")
         numeros_crecientes = list(range(numero_activos+1, 1+numero_activos + len(resultado[4])))
@@ -211,6 +233,7 @@ if uploaded_files:
 
         st.write("Activos modificados:")
         st.write(resultado[6][['id', 'OXI_ID', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'id_numerico']])
+
 
 col1, col2 = st.columns(2)
 with col1:
