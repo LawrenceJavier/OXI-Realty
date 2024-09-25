@@ -82,6 +82,10 @@ def actualizar_perimetro(df1, df2):
     # Filas que solo están en el segundo DataFrame
     filas_solo_df2 = df2[~df2['CODIGO INMUEBLE COMPLETO'].isin(df1['CODIGO INMUEBLE COMPLETO'])]
     id_filas_solo_df2 = list(filas_solo_df2["CODIGO INMUEBLE COMPLETO"])
+    columnas_numericas = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
+    for columna in columnas_numericas:
+        if columna in filas_solo_df2:
+            filas_solo_df2[columna] = filas_solo_df2[columna].fillna(0)
 
     st.markdown(f"##### {len(ids_coincidentes)} activos ya existentes no modificados")
     st.markdown(f"##### {len(id_filas_solo_df2)} activos nuevos")
@@ -207,8 +211,8 @@ st.title("Actualización de perímetro")
 st.sidebar.title("OXI REALTY")
 
 df_AT = get_data()
-numero_activos = len(df_AT)
-st.markdown(f"##### {numero_activos} activos totales")
+numero_activos = df_AT.id_numerico.max()
+st.markdown(f"##### {len(df_AT)} activos totales")
 st.markdown(f"##### {df_AT.id_numerico.max()}:    Max id")
 st.write("Todos los activos:")
 st.dataframe(df_AT)
@@ -224,7 +228,6 @@ if uploaded_files:
         # # st.write(df_subido)
         df_perimetro = pd.read_excel(uploaded_file, engine='openpyxl', header=1)
         st.markdown(f"##### {df_perimetro.shape[0]} activos en el perimetro subido")
-        # st.write(df_perimetro)
         
         resultado = actualizar_perimetro(df_AT, df_perimetro)
         
