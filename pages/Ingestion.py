@@ -72,21 +72,21 @@ def actualizar_perimetro(df1, df2):
     columnas_fusion_presentes = [col for col in columnas_fusion if col in df1.columns and col in df2.columns]
     filas_iguales = df1.merge(df2, on=columnas_fusion_presentes)
     ids_coincidentes = filas_iguales['CODIGO INMUEBLE COMPLETO']
-    st.write()        
-    st.markdown(f"##### {len(ids_coincidentes)}: Numero de activos ya existentes no modificados")
 
 
     # Filas que solo están en el primer DataFrame
     filas_solo_df1 = df1[~df1['CODIGO INMUEBLE COMPLETO'].isin(df2['CODIGO INMUEBLE COMPLETO'])]
     id_filas_solo_df1 = list(filas_solo_df1["CODIGO INMUEBLE COMPLETO"])
-    st.markdown(f"##### {len(id_filas_solo_df1)}: Numero de activos que no aparecen en el nuevo DT")
 
 
     # Filas que solo están en el segundo DataFrame
     filas_solo_df2 = df2[~df2['CODIGO INMUEBLE COMPLETO'].isin(df1['CODIGO INMUEBLE COMPLETO'])]
     id_filas_solo_df2 = list(filas_solo_df2["CODIGO INMUEBLE COMPLETO"])
-    st.markdown(f"#####  {len(id_filas_solo_df2)}: Numero de activos nuevos")
 
+    st.markdown(f"##### {len(ids_coincidentes)} activos ya existentes no modificados")
+    st.markdown(f"##### {len(id_filas_solo_df2)} activos nuevos")
+    st.markdown(f"##### {len(id_filas_solo_df1)} activos que no aparecen en el nuevo DT")
+    
     # Filas en ambos DataFrames pero con al menos un campo modificado
     lista_total = []
     lista_total.extend(ids_coincidentes)
@@ -208,8 +208,8 @@ st.sidebar.title("OXI REALTY")
 
 df_AT = get_data()
 numero_activos = len(df_AT)
-st.markdown(f"##### Numero de activos totales: {numero_activos}")
-st.markdown(f"##### El activo con mayor id es: {df_AT.id_numerico.max()}")
+st.markdown(f"##### {numero_activos} activos totales")
+st.markdown(f"##### {df_AT.id_numerico.max()}:    Max id")
 st.write("Todos los activos:")
 st.dataframe(df_AT)
 
@@ -223,7 +223,7 @@ if uploaded_files:
         # df_subido = seleccionar_columnas(tipo_de_perimetro, uploaded_file)
         # # st.write(df_subido)
         df_perimetro = pd.read_excel(uploaded_file, engine='openpyxl', header=1)
-        st.markdown(f"##### Numero de activos del perimetro subido: {df_perimetro.shape[0]}")
+        st.markdown(f"##### {df_perimetro.shape[0]} activos en el perimetro subido")
         # st.write(df_perimetro)
         
         resultado = actualizar_perimetro(df_AT, df_perimetro)
