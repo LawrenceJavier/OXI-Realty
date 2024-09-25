@@ -97,6 +97,7 @@ def actualizar_perimetro(df1, df2):
     
     return filas_iguales, ids_coincidentes, filas_solo_df1, id_filas_solo_df1, filas_solo_df2, id_filas_solo_df2, filas_no_en_lista, id_filas_diferentes
 
+@st.cache_data
 def get_data():
     api = Api(AIRTABLE_API_KEY)
     table = api.table(base_id, table_id)
@@ -204,18 +205,15 @@ st.sidebar.title("OXI REALTY")
 
 df_AT = get_data()
 numero_activos = len(df_AT)
-st.write(f"Numero de activos totales: {numero_activos}")
+st.markdown(f"##### Numero de activos totales: {numero_activos}")
+st.markdown(f"##### El activo con mayor id es: {df_AT.id_numerico.max()}")
+st.write("Todos los activos:")
 st.dataframe(df_AT)
 
 st.markdown('##')
 
 st.header("Seleccion de nuevos activos:", divider= 'gray')
-col1, col2 = st.columns(2)
-with col1:
-    tipo_de_perimetro = st.selectbox('',
-                        ['Anticipa & Aliseda', 'Coral Homes', 'Coral Homes Wips & Suelos', 'Producto Libre OXI'])
-with col2:
-    uploaded_files = st.file_uploader("",accept_multiple_files=True)
+uploaded_files = st.file_uploader("",accept_multiple_files=True)
 
 if uploaded_files:
     for uploaded_file in uploaded_files:
