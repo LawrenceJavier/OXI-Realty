@@ -205,7 +205,7 @@ def create_data(df):
 #    Main   #
 #############
 
-st.set_page_config(page_title="OXI Realty"
+st.set_page_config(page_title="OXI Realty Tech Hub"
                    , layout="wide",
                    page_icon="oxi.png")
 st.title("Actualización de perímetro")

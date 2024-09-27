@@ -1,6 +1,6 @@
 import streamlit as st
 
-st.set_page_config(page_title="OXI Realty"
+st.set_page_config(page_title="OXI Realty Tech Hub"
                    , layout="wide",
                    page_icon="oxi.png")
 
