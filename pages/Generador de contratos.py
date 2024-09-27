@@ -38,15 +38,12 @@ class PDF(FPDF):
         self.ln()
 
 def generate_contract(data):
-    pdf = PDF()
-    pdf.add_page()
-    pdf.chapter_title("Contract Details")
-
-    for key, value in data.items():
-        pdf.chapter_body(f"{key}: {value}")
-
-    pdf.output('/home/lawrence/Escritorio/OXI-Realty/contract.pdf')
-
+        pdf = PDF()
+        pdf.add_page()
+        pdf.chapter_title("Contract Details")
+        for key, value in data.items():
+            pdf.chapter_body(f"{key}: {value}")
+        return pdf.output(dest='S').encode('latin1')
 
 #############
 #    Main   #
@@ -90,8 +87,9 @@ with st.container(border=True):
             st.text_input(label=column, value=value, key=column)
 
 
-
-if st.button("Generate Contract PDF"):
-    input_data = {column: st.session_state[column] for column in selected_data.columns}
-    generate_contract(input_data)
-    st.success("Contract PDF generated successfully!")
+st.download_button(
+    label="Generate and Download Contract PDF",
+    data=generate_contract({column: st.session_state[column] for column in selected_data.columns}),
+    file_name='contract.pdf',
+    mime='application/pdf'
+)
