@@ -50,7 +50,10 @@ def generate_contract(data):
 #    Main   #
 #############
 
-st.set_page_config(page_title="OXI Realty", layout="wide")
+st.set_page_config(page_title="OXI Realty"
+                   , layout="wide",
+                   page_icon="oxi.png")
+
 st.title("Generador de contratos")
 
 st.sidebar.title("OXI REALTY")
