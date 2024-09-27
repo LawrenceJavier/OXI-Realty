@@ -3,6 +3,7 @@ import pandas as pd
 import streamlit as st
 from pyairtable import Api
 from fpdf import FPDF
+import os
 
 #############
 #  Secrets  #
@@ -50,6 +51,7 @@ def generate_contract(data):
 #############
 
 st.set_page_config(page_title="OXI Realty", layout="wide")
+st.title("Generador de contratos")
 
 st.sidebar.title("OXI REALTY")
 st.sidebar.write("[https://oxirealty.com/](https://oxirealty.com/)")
@@ -66,11 +68,18 @@ def get_data():
     return df_AT
 
 
-df_AT = get_data()
+documents_dir = "./documents"
+contract_types = [f for f in os.listdir(documents_dir) if os.path.isfile(os.path.join(documents_dir, f))]
 
-oxi_id = st.selectbox("Select OXI ID", df_AT['OXI_ID'].unique())
+col1, col2 = st.columns(2)
+with col1:
+    contract_type = st.selectbox("Select Contract Type", contract_types)
+with col2:
+    df_AT = get_data()
+    oxi_id = st.selectbox("Select OXI ID", df_AT['OXI_ID'].unique())
+    selected_data = df_AT[df_AT['OXI_ID'] == oxi_id]
 
-selected_data = df_AT[df_AT['OXI_ID'] == oxi_id]
+
 
 st.write("Selected OXI ID Data:")
 
