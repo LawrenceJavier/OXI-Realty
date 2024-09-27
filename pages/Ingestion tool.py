@@ -209,6 +209,8 @@ st.set_page_config(page_title="OXI Realty", layout="wide")
 st.title("Actualización de perímetro")
 
 st.sidebar.title("OXI REALTY")
+st.sidebar.write("[https://oxirealty.com/](https://oxirealty.com/)")
+st.sidebar.write("[OXI Operations AT](https://airtable.com/app3vwLcsaEjJGPl6/tblCzTZXgoRu9Dypt/viwZLRBG5OF3Jp9dW?blocks=hide)")
 
 df_AT = get_data()
 numero_activos = df_AT.id_numerico.max()
