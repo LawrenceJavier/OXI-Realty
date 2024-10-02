@@ -57,7 +57,7 @@ def seleccionar_columnas(tipo_de_perimetro, uploaded_file):
         df_subido.columns= ['CODIGO INMUEBLE COMPLETO', 'TIPOLOGIA INMUEBLE', 'CCAA', 'PROVINCIA', 'CIUDAD',  'DIRECCION COMPLETA', 'CODIGO POSTAL', 'REFERENCIA CATASTRAL', 'SUPERFICIE', 'ASKING PRICE']
         return df_subido
 
-def actualizar_perimetro(df1, df2):
+def actualizar_perimetro(df1, df2, cliente):
     df1 = df1.astype(str)
     df2 = df2.astype(str)
     columnas_float = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
@@ -67,42 +67,62 @@ def actualizar_perimetro(df1, df2):
         if columna in df2:
             df2[columna] = pd.to_numeric(df2[columna], errors='coerce').astype(float)
 
-    # Mostrar las filas idénticas en ambos DF's
-    columnas_fusion = ['CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
-    columnas_fusion_presentes = [col for col in columnas_fusion if col in df1.columns and col in df2.columns]
-    filas_iguales = df1.merge(df2, on=columnas_fusion_presentes)
-    ids_coincidentes = filas_iguales['CODIGO INMUEBLE COMPLETO']
+    # Nuevos activos
+    nuevos_activos= df2[~df2['CODIGO INMUEBLE COMPLETO'].isin(df1['CODIGO INMUEBLE COMPLETO'])]
 
-
-    # Filas que solo están en el primer DataFrame
-    filas_solo_df1 = df1[~df1['CODIGO INMUEBLE COMPLETO'].isin(df2['CODIGO INMUEBLE COMPLETO'])]
-    id_filas_solo_df1 = list(filas_solo_df1["CODIGO INMUEBLE COMPLETO"])
-
-
-    # Filas que solo están en el segundo DataFrame
-    filas_solo_df2 = df2[~df2['CODIGO INMUEBLE COMPLETO'].isin(df1['CODIGO INMUEBLE COMPLETO'])]
-    id_filas_solo_df2 = list(filas_solo_df2["CODIGO INMUEBLE COMPLETO"])
-    columnas_numericas = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
-    for columna in columnas_numericas:
-        if columna in filas_solo_df2:
-            filas_solo_df2[columna] = filas_solo_df2[columna].fillna(0)
-
-    st.markdown(f"##### {len(ids_coincidentes)} activos ya existentes no modificados")
-    st.markdown(f"##### {len(id_filas_solo_df2)} activos nuevos")
-    st.markdown(f"##### {len(id_filas_solo_df1)} activos que no aparecen en el nuevo DT")
+    # Activos excluidos
+    activos_excluidos = df1[(~df1['CODIGO INMUEBLE COMPLETO'].isin(df2['CODIGO INMUEBLE COMPLETO'])) & (df1['CLIENTE'] == cliente)]
     
-    # Filas en ambos DataFrames pero con al menos un campo modificado
-    lista_total = []
-    lista_total.extend(ids_coincidentes)
-    lista_total.extend(id_filas_solo_df1)
-    lista_total.extend(id_filas_solo_df2)
-    df2_extendido = pd.merge(df2, df1[['CODIGO INMUEBLE COMPLETO', 'id_numerico', 'id', 'OXI_ID']], on='CODIGO INMUEBLE COMPLETO', how='left')
-    df_concatenado = pd.concat([df2_extendido, df1], ignore_index=True)
-    df_concatenado = df_concatenado.drop_duplicates(subset=['CODIGO INMUEBLE COMPLETO'], keep='first')
-    filas_no_en_lista = df_concatenado[~df_concatenado['CODIGO INMUEBLE COMPLETO'].isin(lista_total)]
-    id_filas_diferentes = list(filas_no_en_lista["CODIGO INMUEBLE COMPLETO"])
+    # Activos modificados
+    filas_comunes = df1.merge(df2, on='CODIGO INMUEBLE COMPLETO', suffixes=('_df1', '_df2'))
+
+    filas_modificadas = filas_comunes[
+        (filas_comunes['ASKING PRICE_df1'] != filas_comunes['ASKING PRICE_df2']) |
+        (filas_comunes['NUMERO DORMITORIOS_df1'] != filas_comunes['NUMERO DORMITORIOS_df2']) |
+        (filas_comunes['NUMERO BAÑOS_df1'] != filas_comunes['NUMERO BAÑOS_df2']) |
+        (filas_comunes['SUPERFICIE_df1'] != filas_comunes['SUPERFICIE_df2'])
+    ][['CODIGO INMUEBLE COMPLETO', 'ASKING PRICE_df2', 'NUMERO DORMITORIOS_df2', 'NUMERO BAÑOS_df2', 'SUPERFICIE_df2']]
+    filas_modificadas.columns = ['CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
+
+    # Activos no modificados
+    filas_no_modificadas = filas_comunes[
+        (filas_comunes['ASKING PRICE_df1'] == filas_comunes['ASKING PRICE_df2']) &
+        (filas_comunes['NUMERO DORMITORIOS_df1'] == filas_comunes['NUMERO DORMITORIOS_df2']) &
+        (filas_comunes['NUMERO BAÑOS_df1'] == filas_comunes['NUMERO BAÑOS_df2']) &
+        (filas_comunes['SUPERFICIE_df1'] == filas_comunes['SUPERFICIE_df2'])
+    ][['CODIGO INMUEBLE COMPLETO', 'ASKING PRICE_df2', 'NUMERO DORMITORIOS_df2', 'NUMERO BAÑOS_df2', 'SUPERFICIE_df2']]
+    filas_no_modificadas.columns = ['CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
+
+    # # Filas que solo están en el segundo DataFrame
+    # filas_solo_df2 = df2[~df2['CODIGO INMUEBLE COMPLETO'].isin(df1['CODIGO INMUEBLE COMPLETO'])]
+    # id_filas_solo_df2 = list(filas_solo_df2["CODIGO INMUEBLE COMPLETO"])
+    # columnas_numericas = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
+    # for columna in columnas_numericas:
+    #     if columna in filas_solo_df2:
+    #         filas_solo_df2[columna] = filas_solo_df2[columna].fillna(0)
     
-    return filas_iguales, ids_coincidentes, filas_solo_df1, id_filas_solo_df1, filas_solo_df2, id_filas_solo_df2, filas_no_en_lista, id_filas_diferentes
+
+    # id_filas_solo_df1=[]
+    # filas_solo_df1 = []
+
+    # # Filas en ambos DataFrames pero con al menos un campo modificado
+    # lista_total = []
+    # lista_total.extend(ids_coincidentes)
+    # lista_total.extend(id_filas_solo_df1)
+    # lista_total.extend(id_filas_solo_df2)
+    # df2_extendido = pd.merge(df2, df1[['CODIGO INMUEBLE COMPLETO', 'id_numerico', 'id', 'OXI_ID']], on='CODIGO INMUEBLE COMPLETO', how='left')
+    # df_concatenado = pd.concat([df2_extendido, df1], ignore_index=True)
+    # df_concatenado = df_concatenado.drop_duplicates(subset=['CODIGO INMUEBLE COMPLETO'], keep='first')
+    # filas_no_en_lista = df_concatenado[~df_concatenado['CODIGO INMUEBLE COMPLETO'].isin(lista_total)]
+    # id_filas_diferentes = list(filas_no_en_lista["CODIGO INMUEBLE COMPLETO"])
+    
+
+    # st.markdown(f"###### {len(ids_coincidentes)} activos no modificados.")
+    
+    # st.markdown(f"###### {len(id_filas_diferentes)} activos excluidos.")
+
+    # return filas_iguales, ids_coincidentes, filas_solo_df1, id_filas_solo_df1, filas_solo_df2, id_filas_solo_df2, filas_no_en_lista, id_filas_diferentes
+    return nuevos_activos, activos_excluidos, filas_modificadas, filas_no_modificadas
 
 @st.cache_data
 def get_data():
@@ -145,7 +165,7 @@ def update_data(df):
         for field in fields_to_remove:
             del record["fields"][field]
 
-    st.write(final_data)
+    # st.write(final_data)
 
     response = requests.patch(url, headers=headers, json=final_data)
 
@@ -181,14 +201,14 @@ def create_data(df):
             for field in fields_to_remove:
                 del record["fields"][field]
 
-        print(final_data)
+        # print(final_data)
 
         url = f"https://api.airtable.com/v0/{base_id}/{table_id}"
         response = requests.post(url, headers=create_headers(), json=final_data)
 
         if response.status_code == 200:
             print("Record create successfully!")
-            st.write("Record create successfully!")
+            # st.write("Record create successfully!")
         else:
             # print("Failed to create record.", response.status_code)
             try:
@@ -224,24 +244,35 @@ st.dataframe(df_AT)
 st.markdown('##')
 
 st.header("Nuevos activos:", divider= 'gray')
-uploaded_files = st.file_uploader("",accept_multiple_files=True)
 
-if uploaded_files:
-    for uploaded_file in uploaded_files:
-        # df_subido = seleccionar_columnas(tipo_de_perimetro, uploaded_file)
-        # # st.write(df_subido)
-        df_perimetro = pd.read_excel(uploaded_file, engine='openpyxl', header=1)
-        st.markdown(f"##### {df_perimetro.shape[0]} activos en el perimetro subido")
-        
-        resultado = actualizar_perimetro(df_AT, df_perimetro)
-        
-        st.write("Nuevos activos:")
-        numeros_crecientes = list(range(numero_activos+1, 1+numero_activos + len(resultado[4])))
-        resultado[4]['id_numerico'] = numeros_crecientes
-        st.write(resultado[4])
+tipo_de_perimetro = st.selectbox(
+        'Selecciona el tipo de perímetro:',
+        ['Seleccionar tipo de perímetro', 'Coral Homes Wips & Suelos', 'Coral Homes', 'ANTICIPA', 'Producto Libre OXI']
+    )
 
-        st.write("Activos modificados:")
-        st.write(resultado[6][['id', 'OXI_ID', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'id_numerico']])
+if tipo_de_perimetro != 'Seleccionar tipo de perímetro':
+
+    uploaded_files = st.file_uploader("",accept_multiple_files=True)
+
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            df_perimetro = pd.read_excel(uploaded_file, engine='openpyxl', header=1)
+            st.markdown(f"##### {df_perimetro.shape[0]} activos en el perimetro subido")
+            
+            resultado = actualizar_perimetro(df_AT, df_perimetro, tipo_de_perimetro)
+            
+            st.markdown(f"Activos nuevos: {resultado[0]['CODIGO INMUEBLE COMPLETO'].nunique()}")
+            numeros_crecientes = list(range(numero_activos+1, 1+numero_activos + len(resultado[0])))
+            resultado[0]['id_numerico'] = numeros_crecientes
+            st.write(resultado[0])
+
+            st.write(f"Activos modificados: {resultado[2]['CODIGO INMUEBLE COMPLETO'].nunique()}")
+            st.write(resultado[2])
+    
+            st.write(f"Activos no modificados: {resultado[3]['CODIGO INMUEBLE COMPLETO'].nunique()}")
+
+            st.markdown(f"Activos excluidos: {resultado[1]['CODIGO INMUEBLE COMPLETO'].nunique()}")
+            st.write(resultado[1][['id', 'OXI_ID', 'CLIENTE', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'id_numerico']])
 
 
 col1, col2 = st.columns(2)
@@ -255,6 +286,7 @@ with col1:
                 grupo_filas = resultado[4].iloc[indice_inicial:indice_inicial + filas_por_iteracion]
                 create_data(grupo_filas)
                 indice_inicial += filas_por_iteracion
+    st.write("Activos creados correctamente.")
 
 with col2:
     if st.button('Actualizar los activos', type="primary"):
@@ -265,4 +297,4 @@ with col2:
                 grupo_filas = resultado[6].iloc[indice_inicial:indice_inicial + filas_por_iteracion]
                 update_data(grupo_filas)
                 indice_inicial += filas_por_iteracion
-                
+    st.write("Activos actualizados correctamente.")
