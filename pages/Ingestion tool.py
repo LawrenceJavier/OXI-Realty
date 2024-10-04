@@ -69,6 +69,10 @@ def actualizar_perimetro(df1, df2, cliente):
 
     # Nuevos activos
     nuevos_activos= df2[~df2['CODIGO INMUEBLE COMPLETO'].isin(df1['CODIGO INMUEBLE COMPLETO'])]
+    # Reemplazar NaN por 0 en las columnas especificadas
+    columnas_a_reemplazar = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
+    for columna in columnas_a_reemplazar:
+        nuevos_activos[columna] = nuevos_activos[columna].fillna(0)
 
     # Activos excluidos
     activos_excluidos = df1[(~df1['CODIGO INMUEBLE COMPLETO'].isin(df2['CODIGO INMUEBLE COMPLETO'])) & (df1['CLIENTE'] == cliente)]
@@ -81,8 +85,12 @@ def actualizar_perimetro(df1, df2, cliente):
         (filas_comunes['NUMERO DORMITORIOS_df1'] != filas_comunes['NUMERO DORMITORIOS_df2']) |
         (filas_comunes['NUMERO BAÑOS_df1'] != filas_comunes['NUMERO BAÑOS_df2']) |
         (filas_comunes['SUPERFICIE_df1'] != filas_comunes['SUPERFICIE_df2'])
-    ][['CODIGO INMUEBLE COMPLETO', 'ASKING PRICE_df2', 'NUMERO DORMITORIOS_df2', 'NUMERO BAÑOS_df2', 'SUPERFICIE_df2']]
-    filas_modificadas.columns = ['CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
+    ][['id', 'id_numerico', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE_df2', 'NUMERO DORMITORIOS_df2', 'NUMERO BAÑOS_df2', 'SUPERFICIE_df2']]
+    filas_modificadas.columns = ['id', 'id_numerico', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
+    # Reemplazar NaN por 0 en las columnas especificadas
+    columnas_a_reemplazar = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
+    for columna in columnas_a_reemplazar:
+        filas_modificadas[columna] = filas_modificadas[columna].fillna(0)
 
     # Activos no modificados
     filas_no_modificadas = filas_comunes[
@@ -247,7 +255,7 @@ st.header("Nuevos activos:", divider= 'gray')
 
 tipo_de_perimetro = st.selectbox(
         'Selecciona el tipo de perímetro:',
-        ['Seleccionar tipo de perímetro', 'Coral Homes Wips & Suelos', 'Coral Homes', 'ANTICIPA', 'Producto Libre OXI']
+        ['Seleccionar tipo de perímetro', 'Coral Homes Wips & Suelos', 'Coral Homes', 'ANTICIPA', 'SINTRA', 'Producto Libre OXI']
     )
 
 if tipo_de_perimetro != 'Seleccionar tipo de perímetro':
@@ -272,18 +280,17 @@ if tipo_de_perimetro != 'Seleccionar tipo de perímetro':
             st.write(f"Activos no modificados: {resultado[3]['CODIGO INMUEBLE COMPLETO'].nunique()}")
 
             st.markdown(f"Activos excluidos: {resultado[1]['CODIGO INMUEBLE COMPLETO'].nunique()}")
-            st.write(resultado[1][['id', 'OXI_ID', 'CLIENTE', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'id_numerico']])
-
+            st.write(resultado[1])
 
 col1, col2 = st.columns(2)
 with col1:
     if st.button('Crear los activos', type="primary"):
-        with st.spinner('Uploading...'):
+        with st.spinner('Creando...'):
             # Número de filas a imprimir en cada iteración
             filas_por_iteracion = 3
             indice_inicial = 0
-            while indice_inicial < len(resultado[4]):
-                grupo_filas = resultado[4].iloc[indice_inicial:indice_inicial + filas_por_iteracion]
+            while indice_inicial < len(resultado[0]):
+                grupo_filas = resultado[0].iloc[indice_inicial:indice_inicial + filas_por_iteracion]
                 create_data(grupo_filas)
                 indice_inicial += filas_por_iteracion
     st.write("Activos creados correctamente.")
@@ -291,10 +298,10 @@ with col1:
 with col2:
     if st.button('Actualizar los activos', type="primary"):
         with st.spinner('Uploading...'):
-            filas_por_iteracion = 3
+            filas_por_iteracion = 10
             indice_inicial = 0
-            while indice_inicial < len(resultado[4]):
-                grupo_filas = resultado[6].iloc[indice_inicial:indice_inicial + filas_por_iteracion]
+            while indice_inicial < len(resultado[2]):
+                grupo_filas = resultado[2].iloc[indice_inicial:indice_inicial + filas_por_iteracion]
                 update_data(grupo_filas)
                 indice_inicial += filas_por_iteracion
     st.write("Activos actualizados correctamente.")
