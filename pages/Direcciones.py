@@ -89,7 +89,7 @@ def get_coordenadas(x, y, uso):
     except:
         return [0,0]
 
-def  catastros_etl(catastro, return_list):
+def catastros_etl(catastro, return_list):
 
     url = f"https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/json/Consulta_DNPRC?RefCat={catastro}"
     response = requests.get(url, verify=False, timeout=10)

@@ -26,9 +26,9 @@ def create_headers():
     }
     return headers
 
-def seleccionar_columnas(tipo_de_perimetro, uploaded_file):
+def seleccionar_columnas(tipo_de_cliente, uploaded_file):
 
-    if tipo_de_perimetro == 'Coral Homes Wips & Suelos':
+    if tipo_de_cliente == 'Coral Homes Wips & Suelos':
         df1 = pd.read_excel(uploaded_file,sheet_name=0, engine='openpyxl', header=0)
         df1 = df1.drop(["UR's Promo", "% Propiedad", f"% Ejecución", "Total Resi Units", "Posesión"], axis=1)
         df1.columns= ['CODIGO INMUEBLE COMPLETO', 'DIRECCION COMPLETA', 'REFERENCIA CATASTRAL', 'CIUDAD', 'PROVINCIA', 'CCAA']
@@ -39,26 +39,30 @@ def seleccionar_columnas(tipo_de_perimetro, uploaded_file):
         df_subido = df.reset_index(drop=True)
         return df_subido
     
-    elif tipo_de_perimetro == 'Coral Homes':
+    elif tipo_de_cliente == 'Coral Homes':
         df = pd.read_excel(uploaded_file, engine='openpyxl', header=1)
         df_subido = df.drop(['Promoción conjunta', 'Unidades Promoción conjunta','Promoción comercial', 'Unidades Promoción comercial', 'Superficie Solar'], axis=1)
         df_subido.columns= ['CODIGO INMUEBLE COMPLETO', 'DIRECCION COMPLETA', 'CIUDAD', 'PROVINCIA', 'CCAA', 'CODIGO POSTAL', 'REFERENCIA CATASTRAL', 'TIPOLOGIA INMUEBLE', 'SUPERFICIE', 'ASKING PRICE']
         return df_subido
     
-    elif tipo_de_perimetro == 'Anticipa & Aliseda':
+    elif tipo_de_cliente == 'Anticipa & Aliseda':
         df = pd.read_excel(uploaded_file, engine='openpyxl', header=1)
         df_subido = df.drop(['ID ATENEA', 'CODIGO SOCIEDAD'], axis=1)
         df_subido.columns= ['CODIGO INMUEBLE COMPLETO', 'EMPRESA PROPIETARIA', 'TIPOLOGIA INMUEBLE', 'REFERENCIA CATASTRAL', 'CCAA', 'PROVINCIA', 'CIUDAD', 'DIRECCION COMPLETA', 'CODIGO POSTAL', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
         return df_subido
     
-    elif tipo_de_perimetro == 'Producto Libre OXI':
+    elif tipo_de_cliente == 'Producto Libre OXI':
         df = pd.read_excel(uploaded_file)
         df_subido = df.drop(["Portfolio", "Construcción", "Año Construcción", "Escalera", "Piso", "FR",  "Coef. Particip", "Expediente Judicial", "Situación"], axis=1)
         df_subido.columns= ['CODIGO INMUEBLE COMPLETO', 'TIPOLOGIA INMUEBLE', 'CCAA', 'PROVINCIA', 'CIUDAD',  'DIRECCION COMPLETA', 'CODIGO POSTAL', 'REFERENCIA CATASTRAL', 'SUPERFICIE', 'ASKING PRICE']
         return df_subido
 
-def actualizar_perimetro(df1, df2, cliente):
+def actualizar_perimetro(df1, df2, cliente,operacion):
     df1 = df1.astype(str)
+    # df1 = df1[(df1['ASSET STATUS'] != 'EXCLUDED')]
+    df1_tmp = df1[(df1['CLIENTE'] == cliente)]
+    df1 = df1_tmp[(df1_tmp['TIPO DE OPERACIÓN'] == operacion)]
+    st.write(f"###### Activos {cliente}: {len(df1_tmp)} --> Activos {cliente} {operacion}: {len(df1)}")
     df2 = df2.astype(str)
     columnas_float = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
     for columna in columnas_float:
@@ -73,9 +77,12 @@ def actualizar_perimetro(df1, df2, cliente):
     columnas_a_reemplazar = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
     for columna in columnas_a_reemplazar:
         nuevos_activos[columna] = nuevos_activos[columna].fillna(0)
+    nuevos_activos["ASSET STATUS"] = "AVAILABLE"
 
     # Activos excluidos
-    activos_excluidos = df1[(~df1['CODIGO INMUEBLE COMPLETO'].isin(df2['CODIGO INMUEBLE COMPLETO'])) & (df1['CLIENTE'] == cliente)]
+    activos_excluidos = df1[(~df1['CODIGO INMUEBLE COMPLETO'].isin(df2['CODIGO INMUEBLE COMPLETO']))]
+    activos_excluidos = activos_excluidos[(activos_excluidos['ASSET STATUS'] == 'AVAILABLE')]
+    activos_excluidos["ASSET STATUS"] = "EXCLUDED"
     
     # Activos modificados
     filas_comunes = df1.merge(df2, on='CODIGO INMUEBLE COMPLETO', suffixes=('_df1', '_df2'))
@@ -85,12 +92,13 @@ def actualizar_perimetro(df1, df2, cliente):
         (filas_comunes['NUMERO DORMITORIOS_df1'] != filas_comunes['NUMERO DORMITORIOS_df2']) |
         (filas_comunes['NUMERO BAÑOS_df1'] != filas_comunes['NUMERO BAÑOS_df2']) |
         (filas_comunes['SUPERFICIE_df1'] != filas_comunes['SUPERFICIE_df2'])
-    ][['id', 'id_numerico', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE_df2', 'NUMERO DORMITORIOS_df2', 'NUMERO BAÑOS_df2', 'SUPERFICIE_df2']]
-    filas_modificadas.columns = ['id', 'id_numerico', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
-    # Reemplazar NaN por 0 en las columnas especificadas
+    ][['id', 'id_numerico', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE_df2', 'NUMERO DORMITORIOS_df2', 'NUMERO BAÑOS_df2', 'SUPERFICIE_df2', 'ASSET STATUS']]
+    print(list(filas_modificadas.columns))
+    filas_modificadas.columns = ['id', 'id_numerico', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'ASSET STATUS']
     columnas_a_reemplazar = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
     for columna in columnas_a_reemplazar:
         filas_modificadas[columna] = filas_modificadas[columna].fillna(0)
+    filas_modificadas = filas_modificadas[(filas_modificadas['ASSET STATUS'] != 'EXCLUDED')]
 
     # Activos no modificados
     filas_no_modificadas = filas_comunes[
@@ -101,35 +109,10 @@ def actualizar_perimetro(df1, df2, cliente):
     ][['CODIGO INMUEBLE COMPLETO', 'ASKING PRICE_df2', 'NUMERO DORMITORIOS_df2', 'NUMERO BAÑOS_df2', 'SUPERFICIE_df2']]
     filas_no_modificadas.columns = ['CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
 
-    # # Filas que solo están en el segundo DataFrame
-    # filas_solo_df2 = df2[~df2['CODIGO INMUEBLE COMPLETO'].isin(df1['CODIGO INMUEBLE COMPLETO'])]
-    # id_filas_solo_df2 = list(filas_solo_df2["CODIGO INMUEBLE COMPLETO"])
-    # columnas_numericas = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
-    # for columna in columnas_numericas:
-    #     if columna in filas_solo_df2:
-    #         filas_solo_df2[columna] = filas_solo_df2[columna].fillna(0)
-    
+    # filas_no_modificadas = filas_no_modificadas[(filas_no_modificadas['ASSET STATUS'] != 'EXCLUDED')]
 
-    # id_filas_solo_df1=[]
-    # filas_solo_df1 = []
 
-    # # Filas en ambos DataFrames pero con al menos un campo modificado
-    # lista_total = []
-    # lista_total.extend(ids_coincidentes)
-    # lista_total.extend(id_filas_solo_df1)
-    # lista_total.extend(id_filas_solo_df2)
-    # df2_extendido = pd.merge(df2, df1[['CODIGO INMUEBLE COMPLETO', 'id_numerico', 'id', 'OXI_ID']], on='CODIGO INMUEBLE COMPLETO', how='left')
-    # df_concatenado = pd.concat([df2_extendido, df1], ignore_index=True)
-    # df_concatenado = df_concatenado.drop_duplicates(subset=['CODIGO INMUEBLE COMPLETO'], keep='first')
-    # filas_no_en_lista = df_concatenado[~df_concatenado['CODIGO INMUEBLE COMPLETO'].isin(lista_total)]
-    # id_filas_diferentes = list(filas_no_en_lista["CODIGO INMUEBLE COMPLETO"])
-    
 
-    # st.markdown(f"###### {len(ids_coincidentes)} activos no modificados.")
-    
-    # st.markdown(f"###### {len(id_filas_diferentes)} activos excluidos.")
-
-    # return filas_iguales, ids_coincidentes, filas_solo_df1, id_filas_solo_df1, filas_solo_df2, id_filas_solo_df2, filas_no_en_lista, id_filas_diferentes
     return nuevos_activos, activos_excluidos, filas_modificadas, filas_no_modificadas
 
 @st.cache_data
@@ -253,46 +236,61 @@ st.markdown('##')
 
 st.header("Nuevos activos:", divider= 'gray')
 
-tipo_de_perimetro = st.selectbox(
-        'Selecciona el tipo de perímetro:',
-        ['Seleccionar tipo de perímetro', 'Coral Homes Wips & Suelos', 'Coral Homes', 'ANTICIPA', 'SINTRA', 'Producto Libre OXI']
-    )
+col1, col2 = st.columns(2)
+with col1:
+    tipo_de_cliente = st.selectbox(
+            'Selecciona el tipo de perímetro:',
+            ['Seleccionar tipo de perímetro', 'Coral Homes Wips & Suelos', 'Coral Homes', 'ANTICIPA', 'SINTRA', 'Producto Libre OXI']
+        )
+with col2:
+    tipo_de_operacion = st.selectbox(
+            'Selecciona el tipo de operacion:',
+            ['Seleccionar tipo de operacion', 'REO SIN POSESION', 'REO', 'LIBRE', 'CONCURSO DE ACREEDORES', 'LIBRE PROVINIENTE DE UN PROCESO JUDICIAL', 'VENTA DE CREDITO', 'CDR', 'POA']
+        )
 
-if tipo_de_perimetro != 'Seleccionar tipo de perímetro':
+if tipo_de_cliente != 'Seleccionar tipo de perímetro':
 
-    uploaded_files = st.file_uploader("",accept_multiple_files=True)
+    if tipo_de_operacion != 'Seleccionar tipo de operacion':
 
-    if uploaded_files:
-        for uploaded_file in uploaded_files:
-            df_perimetro = pd.read_excel(uploaded_file, engine='openpyxl', header=1)
-            st.markdown(f"##### {df_perimetro.shape[0]} activos en el perimetro subido")
-            
-            resultado = actualizar_perimetro(df_AT, df_perimetro, tipo_de_perimetro)
-            
-            st.markdown(f"Activos nuevos: {resultado[0]['CODIGO INMUEBLE COMPLETO'].nunique()}")
-            numeros_crecientes = list(range(numero_activos+1, 1+numero_activos + len(resultado[0])))
-            resultado[0]['id_numerico'] = numeros_crecientes
-            st.write(resultado[0])
+        uploaded_files = st.file_uploader("",accept_multiple_files=True)
 
-            st.write(f"Activos modificados: {resultado[2]['CODIGO INMUEBLE COMPLETO'].nunique()}")
-            st.write(resultado[2])
-    
-            st.write(f"Activos no modificados: {resultado[3]['CODIGO INMUEBLE COMPLETO'].nunique()}")
+        if uploaded_files:
+            for uploaded_file in uploaded_files:
+                df_perimetro = pd.read_excel(uploaded_file, engine='openpyxl', header=1)
+                st.markdown(f"##### {df_perimetro.shape[0]} activos en el perimetro subido")
+                
+                resultado = actualizar_perimetro(df_AT, df_perimetro, tipo_de_cliente, tipo_de_operacion)
+                
+                st.markdown(f"Activos nuevos: {resultado[0]['CODIGO INMUEBLE COMPLETO'].nunique()}")
+                numeros_crecientes = list(range(numero_activos+1, 1+numero_activos + len(resultado[0])))
+                resultado[0]['id_numerico'] = numeros_crecientes
+                st.write(resultado[0])
 
-            st.markdown(f"Activos excluidos: {resultado[1]['CODIGO INMUEBLE COMPLETO'].nunique()}")
-            st.write(resultado[1])
+                st.write(f"Activos modificados: {resultado[2]['CODIGO INMUEBLE COMPLETO'].nunique()}")
+                st.write(resultado[2])
+        
+                st.write(f"Activos no modificados: {resultado[3]['CODIGO INMUEBLE COMPLETO'].nunique()}")
+
+                st.markdown(f"Activos excluidos: {resultado[1]['CODIGO INMUEBLE COMPLETO'].nunique()}")
+                st.write(resultado[1])
 
 col1, col2 = st.columns(2)
 with col1:
     if st.button('Crear los activos', type="primary"):
         with st.spinner('Creando...'):
             # Número de filas a imprimir en cada iteración
-            filas_por_iteracion = 3
+            filas_por_iteracion = 9
             indice_inicial = 0
             while indice_inicial < len(resultado[0]):
+
+                if len(resultado[0])-indice_inicial < filas_por_iteracion:
+                    filas_por_iteracion = len(resultado[0])-indice_inicial
+                    print("ultima")
+
                 grupo_filas = resultado[0].iloc[indice_inicial:indice_inicial + filas_por_iteracion]
                 create_data(grupo_filas)
-                indice_inicial += filas_por_iteracion
+                indice_inicial = indice_inicial + filas_por_iteracion+1
+
     st.write("Activos creados correctamente.")
 
 with col2:
