@@ -59,7 +59,6 @@ def seleccionar_columnas(tipo_de_cliente, uploaded_file):
 
 def actualizar_perimetro(df1, df2, cliente,operacion):
     df1 = df1.astype(str)
-    # df1 = df1[(df1['ASSET STATUS'] != 'EXCLUDED')]
     df1_tmp = df1[(df1['CLIENTE'] == cliente)]
     df1 = df1_tmp[(df1_tmp['TIPO DE OPERACIÓN'] == operacion)]
     st.write(f"###### Activos {cliente}: {len(df1_tmp)} --> Activos {cliente} {operacion}: {len(df1)}")
@@ -73,7 +72,6 @@ def actualizar_perimetro(df1, df2, cliente,operacion):
 
     # Nuevos activos
     nuevos_activos= df2[~df2['CODIGO INMUEBLE COMPLETO'].isin(df1['CODIGO INMUEBLE COMPLETO'])]
-    # Reemplazar NaN por 0 en las columnas especificadas
     columnas_a_reemplazar = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
     for columna in columnas_a_reemplazar:
         nuevos_activos[columna] = nuevos_activos[columna].fillna(0)
@@ -85,6 +83,11 @@ def actualizar_perimetro(df1, df2, cliente,operacion):
     activos_excluidos["ASSET STATUS"] = "EXCLUDED"
     
     # Activos modificados
+    columnas_a_reemplazar = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
+    for columna in columnas_a_reemplazar:
+        if columna in df2.columns:
+            df2[columna] = df2[columna].fillna(0)
+
     filas_comunes = df1.merge(df2, on='CODIGO INMUEBLE COMPLETO', suffixes=('_df1', '_df2'))
 
     filas_modificadas = filas_comunes[
@@ -93,11 +96,10 @@ def actualizar_perimetro(df1, df2, cliente,operacion):
         (filas_comunes['NUMERO BAÑOS_df1'] != filas_comunes['NUMERO BAÑOS_df2']) |
         (filas_comunes['SUPERFICIE_df1'] != filas_comunes['SUPERFICIE_df2'])
     ][['id', 'id_numerico', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE_df2', 'NUMERO DORMITORIOS_df2', 'NUMERO BAÑOS_df2', 'SUPERFICIE_df2', 'ASSET STATUS']]
-    print(list(filas_modificadas.columns))
     filas_modificadas.columns = ['id', 'id_numerico', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'ASSET STATUS']
     columnas_a_reemplazar = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
-    for columna in columnas_a_reemplazar:
-        filas_modificadas[columna] = filas_modificadas[columna].fillna(0)
+    # for columna in columnas_a_reemplazar:
+    #     filas_modificadas[columna] = filas_modificadas[columna].fillna(0)
     filas_modificadas = filas_modificadas[(filas_modificadas['ASSET STATUS'] != 'EXCLUDED')]
 
     # Activos no modificados
@@ -108,10 +110,6 @@ def actualizar_perimetro(df1, df2, cliente,operacion):
         (filas_comunes['SUPERFICIE_df1'] == filas_comunes['SUPERFICIE_df2'])
     ][['CODIGO INMUEBLE COMPLETO', 'ASKING PRICE_df2', 'NUMERO DORMITORIOS_df2', 'NUMERO BAÑOS_df2', 'SUPERFICIE_df2']]
     filas_no_modificadas.columns = ['CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
-
-    # filas_no_modificadas = filas_no_modificadas[(filas_no_modificadas['ASSET STATUS'] != 'EXCLUDED')]
-
-
 
     return nuevos_activos, activos_excluidos, filas_modificadas, filas_no_modificadas
 
@@ -124,11 +122,39 @@ def get_data():
     df_AT = df_AT.drop(columns=['createdTime', 'DESCUENTO SOBRE ASKING PRICE.specialValue'])
     return df_AT
 
+def exclude_data(df):
+    url = f'https://api.airtable.com/v0/{base_id}/{table_id}'
+    headers =  create_headers()
+    
+    df = df.astype(str)
+    df_to_upload = df[['id', 'ASSET STATUS']]
+
+    records = []
+    for _, row in df_to_upload.iterrows():
+        record = {"fields": {}}
+        for col in df_to_upload.columns:
+            if pd.notnull(row[col]) and col != "id":
+                record["fields"][col] = row[col]
+
+        record["id"] = row["id"]
+        records.append(record)
+
+    # Formato final deseado
+    final_data = {"records": records}
+
+    response = requests.patch(url, headers=headers, json=final_data)
+
+    if response.status_code == 200:
+        print("Record updated successfully!")
+    else:
+        print("Failed to update record.")
+        
 def update_data(df):
     url = f'https://api.airtable.com/v0/{base_id}/{table_id}'
     headers =  create_headers()
     
     df = df.astype(str)
+
     cols_to_convert_float = ['SUPERFICIE', 'ASKING PRICE']
     for col in cols_to_convert_float:
         df[col] = pd.to_numeric(df[col], errors='coerce')
@@ -145,6 +171,8 @@ def update_data(df):
         for col in df_to_upload.columns:
             if pd.notnull(row[col]) and col != "id":
                 record["fields"][col] = row[col]
+            else:
+                print("fallo", col)
         record["id"] = row["id"]
         records.append(record)
 
@@ -240,7 +268,7 @@ col1, col2 = st.columns(2)
 with col1:
     tipo_de_cliente = st.selectbox(
             'Selecciona el tipo de perímetro:',
-            ['Seleccionar tipo de perímetro', 'Coral Homes Wips & Suelos', 'Coral Homes', 'ANTICIPA', 'SINTRA', 'Producto Libre OXI']
+            ['Seleccionar tipo de perímetro', 'Coral Homes Wips & Suelos', 'Coral Homes', 'ANTICIPA', 'ALISEDA', 'SINTRA', 'Producto Libre OXI']
         )
 with col2:
     tipo_de_operacion = st.selectbox(
@@ -274,32 +302,47 @@ if tipo_de_cliente != 'Seleccionar tipo de perímetro':
                 st.markdown(f"Activos excluidos: {resultado[1]['CODIGO INMUEBLE COMPLETO'].nunique()}")
                 st.write(resultado[1])
 
-col1, col2 = st.columns(2)
+st.markdown('#')
+
+col1, col2, col3 = st.columns(3)
 with col1:
-    if st.button('Crear los activos', type="primary"):
+    if st.button('Crear Activos', type="primary"):
         with st.spinner('Creando...'):
-            # Número de filas a imprimir en cada iteración
             filas_por_iteracion = 9
             indice_inicial = 0
             while indice_inicial < len(resultado[0]):
-
                 if len(resultado[0])-indice_inicial < filas_por_iteracion:
                     filas_por_iteracion = len(resultado[0])-indice_inicial
                     print("ultima")
-
                 grupo_filas = resultado[0].iloc[indice_inicial:indice_inicial + filas_por_iteracion]
                 create_data(grupo_filas)
-                indice_inicial = indice_inicial + filas_por_iteracion+1
-
+                indice_inicial = indice_inicial + filas_por_iteracion
     st.write("Activos creados correctamente.")
 
 with col2:
-    if st.button('Actualizar los activos', type="primary"):
-        with st.spinner('Uploading...'):
-            filas_por_iteracion = 10
+    if st.button('Actualizar activos', type="primary"):
+        with st.spinner('Actualizando...'):
+            filas_por_iteracion = 9
             indice_inicial = 0
             while indice_inicial < len(resultado[2]):
+                if len(resultado[2])-indice_inicial < filas_por_iteracion:
+                    filas_por_iteracion = len(resultado[2])-indice_inicial
+                    print("ultima")
                 grupo_filas = resultado[2].iloc[indice_inicial:indice_inicial + filas_por_iteracion]
                 update_data(grupo_filas)
-                indice_inicial += filas_por_iteracion
+                indice_inicial = indice_inicial + filas_por_iteracion
+    st.write("Activos actualizados correctamente.")
+
+with col3:
+    if st.button('Excluir activos', type="primary"):
+        with st.spinner('Excluyendo...'):
+            filas_por_iteracion = 9
+            indice_inicial = 0
+            while indice_inicial < len(resultado[1]):
+                if len(resultado[1])-indice_inicial < filas_por_iteracion:
+                    filas_por_iteracion = len(resultado[1])-indice_inicial
+                    print("ultima")
+                grupo_filas = resultado[1].iloc[indice_inicial:indice_inicial + filas_por_iteracion]
+                exclude_data(grupo_filas)
+                indice_inicial = indice_inicial + filas_por_iteracion
     st.write("Activos actualizados correctamente.")

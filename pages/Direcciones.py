@@ -40,10 +40,12 @@ def update_data(df):
     headers =  create_headers()
     
     df = df.astype(str)
+
     cols_to_convert_float = ['SUPERFICIE']
     for col in cols_to_convert_float:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
+    df = df.drop(columns=['OXI_ID'])
     df_to_upload = df
 
     records = []
@@ -63,14 +65,13 @@ def update_data(df):
         for field in fields_to_remove:
             del record["fields"][field]
 
-    # st.write(final_data)
-
     response = requests.patch(url, headers=headers, json=final_data)
 
     if response.status_code == 200:
         print("Record updated successfully!")
     else:
-        print("Failed to update record.")
+        print("Failed to update record.", response, response.text)
+
 
 
 
@@ -182,29 +183,26 @@ def get_informacion_catastro(catastro):
     return 000
 
 
-# r = get_informacion_catastro(" 2594806VK4729D0001JO")
-# st.write(r)
 
 
 
 df_AT = get_data()
 
-# df_direcciones = df_AT[["id", "OXI_ID", "CODIGO INMUEBLE COMPLETO", "REFERENCIA CATASTRAL", "CCAA", "PROVINCIA", "CIUDAD", "DIRECCION COMPLETA", "NUMERO DORMITORIOS", "NUMERO BAÑOS", "SUPERFICIE", "Extraccion direciones"]]
 df_direcciones = df_AT[["id", "OXI_ID", "REFERENCIA CATASTRAL"]]
                        
 df_direcciones = df_direcciones[df_direcciones["REFERENCIA CATASTRAL"].str.len() > 5]
 st.write(df_direcciones)
 
-for index, row in df_direcciones.head(100).iterrows():
+for index, row in df_direcciones.iterrows():
     try:
         catastro = row["REFERENCIA CATASTRAL"]
         r = get_informacion_catastro(catastro)
         df_direcciones.at[index, "provincia texto"] = r["prov"]
         df_direcciones.at[index, "ciudad text"] = r["mun"]
-        df_direcciones.at[index, "DIRECCION COMPLETA"] = f'{r["calle"]}, {r["num"]}'
-        df_direcciones.at[index, "CODIGO POSTAL"] = r["cp"]
-        df_direcciones.at[index, "SUPERFICIE"] = r["sup_const"]
-        # df_direcciones.at[index, "Extraccion direciones"] = "T"
+        df_direcciones.at[index, "DIRECCION COMPLETA texto"] = f'{r["calle"]}, {r["num"]}'
+        df_direcciones.at[index, "CODIGO POSTAL texto"] = r["cp"]
+        df_direcciones.at[index, "SUPERFICIE texto"] = r["sup_const"]
+        df_direcciones.at[index, "Extraccion direciones"] = "DONE"
         df_direcciones.at[index, "Cartografia"] = r["cartografia"]
         ubicacion = []
         if r["usos_list"]:
@@ -217,18 +215,17 @@ for index, row in df_direcciones.head(100).iterrows():
         
     except Exception as e:
         print(f"Falla-{row['REFERENCIA CATASTRAL']}: {e}")
-st.write(df_direcciones)
 
-df_direcciones = df_direcciones.head(100)
 
-st.write(df_direcciones)
-
-if st.button('Actualizar los activos', type="primary"):
-    with st.spinner('Uploading...'):
-        filas_por_iteracion = 1
+if st.button('Actualizar activos', type="primary"):
+    with st.spinner('Actualizando...'):
+        filas_por_iteracion = 9
         indice_inicial = 0
         while indice_inicial < len(df_direcciones):
+            if len(df_direcciones)-indice_inicial < filas_por_iteracion:
+                filas_por_iteracion = len(df_direcciones)-indice_inicial
+                print("ultima")
             grupo_filas = df_direcciones.iloc[indice_inicial:indice_inicial + filas_por_iteracion]
             update_data(grupo_filas)
-            indice_inicial += filas_por_iteracion
+            indice_inicial = indice_inicial + filas_por_iteracion
 st.write("Activos actualizados correctamente.")
