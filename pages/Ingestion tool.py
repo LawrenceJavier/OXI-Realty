@@ -6,6 +6,9 @@ import re
 import json
 import requests
 import openpyxl
+from pyproj import Proj, transform
+import warnings
+warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
 #############
 #  Secrets  #
@@ -95,8 +98,8 @@ def actualizar_perimetro(df1, df2, cliente,operacion):
         (filas_comunes['NUMERO DORMITORIOS_df1'] != filas_comunes['NUMERO DORMITORIOS_df2']) |
         (filas_comunes['NUMERO BAÑOS_df1'] != filas_comunes['NUMERO BAÑOS_df2']) |
         (filas_comunes['SUPERFICIE_df1'] != filas_comunes['SUPERFICIE_df2'])
-    ][['id', 'id_numerico', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE_df2', 'NUMERO DORMITORIOS_df2', 'NUMERO BAÑOS_df2', 'SUPERFICIE_df2', 'ASSET STATUS']]
-    filas_modificadas.columns = ['id', 'id_numerico', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'ASSET STATUS']
+    ][['id', 'id_numerico', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE_df2', 'NUMERO DORMITORIOS_df2', 'NUMERO BAÑOS_df2', 'SUPERFICIE_df2', 'ASSET STATUS', 'REFERENCIA CATASTRAL_df2']]
+    filas_modificadas.columns = ['id', 'id_numerico', 'CODIGO INMUEBLE COMPLETO', 'ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE', 'ASSET STATUS', 'REFERENCIA CATASTRAL']
     columnas_a_reemplazar = ['ASKING PRICE', 'NUMERO DORMITORIOS', 'NUMERO BAÑOS', 'SUPERFICIE']
     # for columna in columnas_a_reemplazar:
     #     filas_modificadas[columna] = filas_modificadas[columna].fillna(0)
@@ -239,6 +242,139 @@ def create_data(df):
                 st.write("Failed to parse error message.")
     except: pass
 
+# FUNCIONES DEL CATASTRO:
+
+def crear_mapa_cartografico(prov, mun, catastro):
+    return f"https://www1.sedecatastro.gob.es/Cartografia/mapa.aspx?del={prov}&mun={mun}&refcat={catastro}&final=&ZV=NO&anyoZV="
+
+def encontrar_valor(valor, listas):
+    return next((lista for lista in listas if valor in lista), None)
+
+def get_coordenadas(x, y, uso):
+    try:
+        origen = Proj(init=uso)
+        destino = Proj(init='EPSG:4326')
+        longitud, latitud = transform(origen, destino, x, y)
+        return [latitud, longitud]
+    except:
+        return [0,0]
+
+def catastros_etl(catastro, return_list):
+
+    url = f"https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/json/Consulta_DNPRC?RefCat={catastro}"
+    response = requests.get(url, verify=False, timeout=10)
+    if response.status_code == 200:
+        response_text_latin1 = response.content.decode('utf-8')
+        data = json.loads(response_text_latin1)
+        data_jason = json.dumps(data, indent=4)
+        
+        if 'cuerr' in data["consulta_dnprcResult"]["control"]:
+            print("error")
+        else:
+            # print("Existe:", catastro)
+
+            cantidad = data["consulta_dnprcResult"]["control"]["cudnp"]
+            # print(f"        ", cantidad)
+            if int(cantidad)==1:
+
+                # print(data_jason)
+
+                clase = data["consulta_dnprcResult"]["bico"]["bi"]["idbi"]["cn"]
+                ref = ''.join(list(data["consulta_dnprcResult"]["bico"]["bi"]["idbi"]["rc"].values()))
+                prov = data["consulta_dnprcResult"]["bico"]["bi"]["dt"]["np"]
+                cod_prov = data["consulta_dnprcResult"]["bico"]["bi"]["dt"]["loine"]["cp"]
+                mun = data["consulta_dnprcResult"]["bico"]["bi"]["dt"]["nm"]
+                cod_mun = data["consulta_dnprcResult"]["bico"]["bi"]["dt"]["loine"]["cm"]
+                cod_cmc = data["consulta_dnprcResult"]["bico"]["bi"]["dt"]["cmc"]
+                try:    calle = f'{data["consulta_dnprcResult"]["bico"]["bi"]["dt"]["locs"]["lous"]["lourb"]["dir"]["tv"]} {data["consulta_dnprcResult"]["bico"]["bi"]["dt"]["locs"]["lous"]["lourb"]["dir"]["nv"]}'
+                except: calle = data["consulta_dnprcResult"]["bico"]["bi"]["ldt"]
+                try:    num = data["consulta_dnprcResult"]["bico"]["bi"]["dt"]["locs"]["lous"]["lourb"]["dir"]["pnp"]
+                except: num = 0
+                try:    cp = data["consulta_dnprcResult"]["bico"]["bi"]["dt"]["locs"]["lous"]["lourb"]["dp"]
+                except: cp = 0
+                uso_ppal = data["consulta_dnprcResult"]["bico"]["bi"]["debi"]["luso"]
+
+                try:    sup_const = data["consulta_dnprcResult"]["bico"]["bi"]["debi"]["sfc"]
+                except: sup_const = 0
+                try:    fecha_construccion = data["consulta_dnprcResult"]["bico"]["bi"]["debi"]["ant"]
+                except: fecha_construccion = 0
+
+                try:
+                    usos_list = []
+                    usos = data["consulta_dnprcResult"]["bico"]["lcons"]
+                    for u in usos:
+                        uso_dict = {}
+                        uso_dict["uso"] = u["lcd"]
+                        try:    uso_dict["ubicacion"] = u["dt"]["lourb"]["loint"]
+                        except: pass
+                        try:    uso_dict["metros"] = u["dfcons"]["stl"]
+                        except: pass
+                        usos_list.append(uso_dict)
+                except: pass
+
+                try:
+                    cultivos_list = []
+                    cultivos = data["consulta_dnprcResult"]["bico"]["lspr"]
+                    for c in cultivos:
+                        cultivo_dict = {}
+                        cultivo_dict["cultivo"] = f'{c["dspr"]["ccc"]} {c["dspr"]["dcc"]}'
+                        try:    cultivo_dict["intensidad"] = c["dspr"]["ip"]
+                        except: pass
+                        try:    cultivo_dict["metros"] = c["dspr"]["ssp"]
+                        except: pass
+                        cultivos_list.append(cultivo_dict)
+                except: pass
+
+                cat = [clase, ref, prov, cod_prov, mun, cod_mun, cod_cmc, calle, num, cp, uso_ppal, sup_const, fecha_construccion, usos_list, cultivos_list]
+
+                return_list.append(cat)
+            else:
+                for e in data["consulta_dnprcResult"]["lrcdnp"]["rcdnp"]:
+                    referencia_temporal = ''.join(list(e["rc"].values()))
+                    catastros_etl(referencia_temporal, return_list)
+
+    else:
+        print("Error al realizar la solicitud. Código de estado:", response.status_code, response)
+    
+    # return_list = list(map(list, zip(*return_list)))
+    return return_list
+
+def get_informacion_catastro(catastro):
+
+    matches = catastros_etl(catastro, [])
+    for lista in matches:
+        if lista[1].strip() == catastro.strip():
+            lista.append(crear_mapa_cartografico(lista[3], lista[6], catastro))
+            keys=["clase", "ref", "prov", "cod_prov", "mun", "cod_mun", "cod_cmc", "calle", "num", "cp", "uso_ppal", "sup_const", "fecha_construccion", "usos_list", "cultivos_list", "cartografia"]
+            diccionario = dict(zip(keys, lista))
+            return diccionario
+    
+    return 000
+
+def crear_direcciones(df_direcciones):
+    for index, row in df_direcciones.iterrows():
+        try:
+            catastro = row["REFERENCIA CATASTRAL"]
+            r = get_informacion_catastro(catastro)
+            df_direcciones.at[index, "provincia texto"] = r["prov"]
+            df_direcciones.at[index, "ciudad text"] = r["mun"]
+            df_direcciones.at[index, "DIRECCION COMPLETA texto"] = f'{r["calle"]}, {r["num"]}'
+            df_direcciones.at[index, "CODIGO POSTAL texto"] = r["cp"]
+            df_direcciones.at[index, "SUPERFICIE texto"] = r["sup_const"]
+            df_direcciones.at[index, "Extraccion direciones"] = "DONE"
+            df_direcciones.at[index, "Cartografia"] = r["cartografia"]
+            ubicacion = []
+            if r["usos_list"]:
+                for uso in r["usos_list"]:
+                    try:
+                        ubicacion.append(uso["ubicacion"])
+                    except:
+                        pass
+            df_direcciones.at[index, "Ubicacion"] = str(ubicacion)
+            
+        except Exception as e:
+            print(f"Falla-{row['REFERENCIA CATASTRAL']}: {e}")
+    return df_direcciones
 
 #############
 #    Main   #
@@ -301,6 +437,9 @@ if tipo_de_cliente != 'Seleccionar tipo de perímetro':
 
                 st.markdown(f"Activos excluidos: {resultado[1]['CODIGO INMUEBLE COMPLETO'].nunique()}")
                 st.write(resultado[1])
+
+
+
 
 st.markdown('#')
 
