@@ -5,6 +5,7 @@ from pyairtable import Api
 import pandas as pd
 from pyproj import Proj, transform
 import warnings
+import time
 warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
 
@@ -35,15 +36,17 @@ def get_data():
     return df_AT
 
 
+
 def update_data(df):
     url = f'https://api.airtable.com/v0/{base_id}/{table_id}'
     headers =  create_headers()
     
     df = df.astype(str)
 
-    cols_to_convert_float = ['SUPERFICIE']
+    cols_to_convert_float = ['SUPERFICIE texto']
     for col in cols_to_convert_float:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
+        if col in list(df.columns):
+            df[col] = pd.to_numeric(df[col], errors='coerce')
 
     df = df.drop(columns=['OXI_ID'])
     df_to_upload = df
@@ -61,9 +64,9 @@ def update_data(df):
     final_data = {"records": records}
 
     for record in final_data["records"]:
-        fields_to_remove = [key for key, value in record["fields"].items() if value == "nan" or value == None]
-        for field in fields_to_remove:
-            del record["fields"][field]
+        fields_to_replace = [key for key, value in record["fields"].items() if value == "nan" or value == None]
+        for field in fields_to_replace:
+            record["fields"][field] = ""
 
     response = requests.patch(url, headers=headers, json=final_data)
 
@@ -72,6 +75,42 @@ def update_data(df):
     else:
         print("Failed to update record.", response, response.text)
 
+def update_error_data(df):
+    url = f'https://api.airtable.com/v0/{base_id}/{table_id}'
+    headers =  create_headers()
+    
+    df = df.astype(str)
+
+    try:
+        df = df.drop(columns=['OXI_ID'])
+    except:
+        pass
+
+    df_to_upload = df
+
+    records = []
+    for _, row in df_to_upload.iterrows():
+        record = {"fields": {}}
+        for col in df_to_upload.columns:
+            if pd.notnull(row[col]) and col != "id":
+                record["fields"][col] = row[col]
+        record["id"] = row["id"]
+        records.append(record)
+
+    # Formato final deseado
+    final_data = {"records": records}
+
+    for record in final_data["records"]:
+        fields_to_replace = [key for key, value in record["fields"].items() if value == "nan" or value is None]
+        for field in fields_to_replace:
+            record["fields"][field] = ""
+
+    response = requests.patch(url, headers=headers, json=final_data)
+
+    if response.status_code == 200:
+        print("Record updated successfully!")
+    else:
+        print("Failed to update record.", response, response.text)
 
 
 
@@ -188,44 +227,79 @@ def get_informacion_catastro(catastro):
 
 df_AT = get_data()
 
+df_AT = df_AT[df_AT["Extraccion direciones"] != "DONE"]
+df_AT = df_AT[df_AT["Extraccion direciones"] != "ERROR"]
+df_AT = df_AT[df_AT["ASSET STATUS"] != "EXCLUDED"]
+
+st.write(df_AT.shape) 
+
 df_direcciones = df_AT[["id", "OXI_ID", "REFERENCIA CATASTRAL"]]
+
+df_direcciones_mal = df_direcciones[df_direcciones["REFERENCIA CATASTRAL"].str.len() != 20]
                        
-df_direcciones = df_direcciones[df_direcciones["REFERENCIA CATASTRAL"].str.len() > 5]
+df_direcciones = df_direcciones[df_direcciones["REFERENCIA CATASTRAL"].str.len() == 20]
+
+df_direcciones = df_direcciones.head(367)
+df_direcciones_mal = df_direcciones_mal.head(100)
+st.write(df_direcciones_mal.shape) 
 st.write(df_direcciones)
 
-for index, row in df_direcciones.iterrows():
-    try:
-        catastro = row["REFERENCIA CATASTRAL"]
-        r = get_informacion_catastro(catastro)
-        df_direcciones.at[index, "provincia texto"] = r["prov"]
-        df_direcciones.at[index, "ciudad text"] = r["mun"]
-        df_direcciones.at[index, "DIRECCION COMPLETA texto"] = f'{r["calle"]}, {r["num"]}'
-        df_direcciones.at[index, "CODIGO POSTAL texto"] = r["cp"]
-        df_direcciones.at[index, "SUPERFICIE texto"] = r["sup_const"]
-        df_direcciones.at[index, "Extraccion direciones"] = "DONE"
-        df_direcciones.at[index, "Cartografia"] = r["cartografia"]
-        ubicacion = []
-        if r["usos_list"]:
-            for uso in r["usos_list"]:
-                try:
-                    ubicacion.append(uso["ubicacion"])
-                except:
-                    pass
-        df_direcciones.at[index, "Ubicacion"] = str(ubicacion)
-        
-    except Exception as e:
-        print(f"Falla-{row['REFERENCIA CATASTRAL']}: {e}")
+indice_inicial = 0
+filas_por_iteracion = 367
 
 
-if st.button('Actualizar activos', type="primary"):
+while indice_inicial < len(df_direcciones):
+    df_error_catastro = pd.DataFrame()
+    id = []
+    direccion = []
+
+    sub_df = df_direcciones.iloc[indice_inicial:indice_inicial + filas_por_iteracion]
+    
+
+    for index, row in sub_df.iterrows():
+        try:
+            catastro = row["REFERENCIA CATASTRAL"]
+            r = get_informacion_catastro(catastro)
+            try:
+                sub_df.at[index, "CODIGO POSTAL texto"] = r["cp"]
+                sub_df.at[index, "provincia texto"] = r["prov"]
+                sub_df.at[index, "ciudad text"] = r["mun"]
+                sub_df.at[index, "DIRECCION COMPLETA texto"] = f'{r["calle"]}, {r["num"]}'
+                sub_df.at[index, "SUPERFICIE texto"] = r["sup_const"]
+                sub_df.at[index, "Cartografia"] = r["cartografia"]
+                ubicacion = []
+                if r["usos_list"]:
+                    for uso in r["usos_list"]:
+                        try:
+                            ubicacion.append(uso["ubicacion"])
+                        except:
+                            pass
+                sub_df.at[index, "Ubicacion"] = str(ubicacion)
+                sub_df.at[index, "Extraccion direciones"] = "DONE"
+            except:
+                id.append(row["id"])
+                direccion.append("ERROR")
+                sub_df.at[index, "Extraccion direciones"] = "ERROR"
+                print("Error en la extracción de la dirección", catastro, sub_df.at[index, "id"], sub_df.at[index, "Extraccion direciones"])
+
+        except Exception as e:
+            print("Falla la conexión", e)
+
+    indice_inicial += filas_por_iteracion
+
+    df_error_catastro["id"] = id
+    df_error_catastro["Extraccion direciones"] = direccion
+
+    st.write(sub_df)
+    st.write(df_error_catastro)
+
     with st.spinner('Actualizando...'):
         filas_por_iteracion = 9
         indice_inicial = 0
-        while indice_inicial < len(df_direcciones):
-            if len(df_direcciones)-indice_inicial < filas_por_iteracion:
-                filas_por_iteracion = len(df_direcciones)-indice_inicial
-                print("ultima")
-            grupo_filas = df_direcciones.iloc[indice_inicial:indice_inicial + filas_por_iteracion]
+        while indice_inicial < len(sub_df):
+            print(indice_inicial, len(sub_df))
+            if len(sub_df) - indice_inicial < filas_por_iteracion:
+                filas_por_iteracion = len(sub_df) - indice_inicial
+            grupo_filas = sub_df.iloc[indice_inicial:indice_inicial + filas_por_iteracion]
             update_data(grupo_filas)
             indice_inicial = indice_inicial + filas_por_iteracion
-st.write("Activos actualizados correctamente.")
