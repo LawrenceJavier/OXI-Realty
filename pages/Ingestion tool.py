@@ -242,6 +242,35 @@ def create_data(df):
                 st.write("Failed to parse error message.")
     except: pass
 
+def get_informacion_catastro_api(df):
+
+    for index, row in df.iterrows():
+        try:
+            catastro = row["REFERENCIA CATASTRAL"]
+            r = get_informacion_catastro(catastro)
+            try:
+                df.at[index, "CODIGO POSTAL texto"] = r["cp"]
+                df.at[index, "provincia texto"] = r["prov"]
+                df.at[index, "ciudad text"] = r["mun"]
+                df.at[index, "DIRECCION COMPLETA texto"] = f'{r["calle"]}, {r["num"]}'
+                df.at[index, "SUPERFICIE texto"] = r["sup_const"]
+                df.at[index, "Cartografia"] = r["cartografia"]
+                ubicacion = []
+                if r["usos_list"]:
+                    for uso in r["usos_list"]:
+                        try:
+                            ubicacion.append(uso["ubicacion"])
+                        except:
+                            pass
+                df.at[index, "Ubicacion"] = str(ubicacion)
+                df.at[index, "Extraccion direciones"] = "DONE"
+            except:
+                df.at[index, "Extraccion direciones"] = "ERROR"
+                print("Error en la extracción de la dirección", catastro, df.at[index, "id"], df.at[index, "Extraccion direciones"])
+        except Exception as e:
+            print("Falla la conexión", e)
+    
+
 # FUNCIONES DEL CATASTRO:
 
 def crear_mapa_cartografico(prov, mun, catastro):
@@ -426,8 +455,12 @@ if tipo_de_cliente != 'Seleccionar tipo de perímetro':
                 resultado = actualizar_perimetro(df_AT, df_perimetro, tipo_de_cliente, tipo_de_operacion)
                 
                 st.markdown(f"Activos nuevos: {resultado[0]['CODIGO INMUEBLE COMPLETO'].nunique()}")
+                numero_activos = int(numero_activos)
                 numeros_crecientes = list(range(numero_activos+1, 1+numero_activos + len(resultado[0])))
                 resultado[0]['id_numerico'] = numeros_crecientes
+
+                # get_informacion_catastro_api(resultado[0])
+
                 st.write(resultado[0])
 
                 st.write(f"Activos modificados: {resultado[2]['CODIGO INMUEBLE COMPLETO'].nunique()}")
@@ -440,6 +473,7 @@ if tipo_de_cliente != 'Seleccionar tipo de perímetro':
 
 
 
+# get_informacion_catastro(resultado[0])
 
 st.markdown('#')
 
