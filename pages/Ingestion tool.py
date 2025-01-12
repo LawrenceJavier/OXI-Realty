@@ -433,12 +433,12 @@ col1, col2 = st.columns(2)
 with col1:
     tipo_de_cliente = st.selectbox(
             'Selecciona el tipo de perímetro:',
-            ['Seleccionar tipo de perímetro', 'Coral Homes Wips & Suelos', 'Coral Homes', 'ANTICIPA', 'ALISEDA', 'SINTRA', 'Producto Libre OXI']
+            ['Seleccionar tipo de perímetro', 'Coral Homes Wips & Suelos', 'Coral Homes', 'ANTICIPA', 'ALISEDA', 'SINTRA', 'Producto Libre OXI', 'CORP']
         )
 with col2:
     tipo_de_operacion = st.selectbox(
             'Selecciona el tipo de operacion:',
-            ['Seleccionar tipo de operacion', 'REO SIN POSESION', 'REO', 'LIBRE', 'CONCURSO DE ACREEDORES', 'LIBRE PROVINIENTE DE UN PROCESO JUDICIAL', 'VENTA DE CREDITO', 'CDR', 'POA']
+            ['Seleccionar tipo de operacion', 'REO SIN POSESION', 'REO', 'LIBRE', 'CONCURSO DE ACREEDORES', 'LIBRE PROVINIENTE DE UN PROCESO JUDICIAL', 'VENTA DE CREDITO', 'CDR', 'POA', 'OBRA NUEVA']
         )
 
 if tipo_de_cliente != 'Seleccionar tipo de perímetro':

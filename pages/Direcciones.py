@@ -239,13 +239,13 @@ df_direcciones_mal = df_direcciones[df_direcciones["REFERENCIA CATASTRAL"].str.l
                        
 df_direcciones = df_direcciones[df_direcciones["REFERENCIA CATASTRAL"].str.len() == 20]
 
-df_direcciones = df_direcciones.head(9)
+df_direcciones = df_direcciones.head(456)
 df_direcciones_mal = df_direcciones_mal.head(100)
 st.write(df_direcciones_mal.shape) 
 st.write(df_direcciones)
 
 indice_inicial = 0
-filas_por_iteracion = 9
+filas_por_iteracion = 456
 
 
 while indice_inicial < len(df_direcciones):
